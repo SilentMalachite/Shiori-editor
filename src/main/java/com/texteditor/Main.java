@@ -1,3 +1,5 @@
+package com.texteditor;
+
 import javafx.application.Application;
 import javafx.stage.Stage;
 import javafx.scene.Scene;
@@ -21,11 +23,11 @@ public class Main extends Application
     VBox vbox;
     Scene scene;
     
-    tf = new TextField("Text Field!");
+    tf = new TextField("テキストフィールド！");
     tf.setMaxWidth(200);
 
-    label = new Label("Type text and click the button");
-    button = new Button("Click"); 
+    label = new Label("テキストを入力してボタンをクリックしてください");
+    button = new Button("クリック"); 
 
     button.setOnAction(new EventHandler<ActionEvent>() {
       @Override public void handle(ActionEvent e) {
@@ -36,9 +38,9 @@ public class Main extends Application
     vbox = new VBox(label, tf, button);
     vbox.setSpacing(20);
     vbox.setAlignment(Pos.CENTER);
-    scene = new Scene(vbox, 300, 200);
+    scene = new Scene(vbox, 400, 300);
     
-    primaryStage.setTitle("A Simple Scene!");
+    primaryStage.setTitle("Markdown対応日本語テキストエディタ");
     primaryStage.setScene(scene);
     primaryStage.show();
   } 
@@ -46,4 +48,4 @@ public class Main extends Application
   public static void main(String[] args) {
     launch(args);
   }
-} 
+}
