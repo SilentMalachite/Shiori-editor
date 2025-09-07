@@ -30,6 +30,8 @@ public class TextEditor extends Application {
     private CodeArea codeArea;
     private ThemeManager themeManager;
     private MarkdownHighlighter markdownHighlighter;
+    private ParagraphFoldingManager foldingManager;
+    private ProgrammingLanguageSupport languageSupport;
     private Stage primaryStage;
     private boolean isModified = false;
 
@@ -37,9 +39,10 @@ public class TextEditor extends Application {
     public void start(Stage primaryStage) {
         this.primaryStage = primaryStage;
         
-        // テーマ管理の初期化
+        // 機能管理の初期化
         themeManager = new ThemeManager();
         markdownHighlighter = new MarkdownHighlighter();
+        languageSupport = new ProgrammingLanguageSupport();
         
         // UI構築
         BorderPane root = createMainLayout();
@@ -73,6 +76,9 @@ public class TextEditor extends Application {
         
         // テキストエリアの作成
         codeArea = createCodeArea();
+        
+        // 段落折りたたみ機能の初期化
+        foldingManager = new ParagraphFoldingManager(codeArea);
         
         // レイアウト配置
         VBox topContainer = new VBox(menuBar, toolBar);
@@ -159,6 +165,33 @@ public class TextEditor extends Application {
         languageCombo.getItems().addAll("Markdown", "Java", "Go", "C/C++", "Haskell", "プレーンテキスト");
         languageCombo.setValue("Markdown");
         
+        // 言語切り替えイベント
+        languageCombo.setOnAction(e -> {
+            String selected = languageCombo.getValue();
+            switch (selected) {
+                case "Java":
+                    languageSupport.setLanguage(ProgrammingLanguageSupport.Language.JAVA);
+                    break;
+                case "Go":
+                    languageSupport.setLanguage(ProgrammingLanguageSupport.Language.GO);
+                    break;
+                case "C/C++":
+                    languageSupport.setLanguage(ProgrammingLanguageSupport.Language.CPP);
+                    break;
+                case "Haskell":
+                    languageSupport.setLanguage(ProgrammingLanguageSupport.Language.HASKELL);
+                    break;
+                case "Markdown":
+                    languageSupport.setLanguage(ProgrammingLanguageSupport.Language.MARKDOWN);
+                    break;
+                default:
+                    languageSupport.setLanguage(ProgrammingLanguageSupport.Language.PLAIN_TEXT);
+                    break;
+            }
+            // ハイライトを更新
+            updateSyntaxHighlighting();
+        });
+        
         toolBar.getItems().addAll(
             newButton, openButton, saveButton, separator1,
             boldButton, italicButton, codeButton, separator2,
@@ -194,7 +227,7 @@ public class TextEditor extends Application {
         // テキスト変更時のハイライト処理
         codeArea.multiPlainChanges()
             .successionEnds(Duration.ofMillis(500))
-            .subscribe(ignore -> codeArea.setStyleSpans(0, markdownHighlighter.computeHighlighting(codeArea.getText())));
+            .subscribe(ignore -> updateSyntaxHighlighting());
         
         // 初期テキストの設定
         codeArea.replaceText(0, 0, getInitialText());
@@ -224,7 +257,18 @@ public class TextEditor extends Application {
                "```\n\n" +
                "### 注意事項\n" +
                "> このエディタはUTF-8エンコーディングに完全対応しています。\n\n" +
-               "ファイルの作成と編集を開始してください！";
+               "ファイルの作成と編集を開始してください！\n\n" +
+               "### 使用方法\n" +
+               "- **段落折りたたみ**: Ctrl + Enter を押しながらマウスクリックで段落を折りたたみ/展開\n" +
+               "- **テーマ切り替え**: 表示メニューからダークモードを選択\n" +
+               "- **言語切り替え**: ツールバーの言語コンボボックスから選択";
+    }
+    
+    /**
+     * シンタックスハイライトを更新
+     */
+    private void updateSyntaxHighlighting() {
+        codeArea.setStyleSpans(0, languageSupport.computeHighlighting(codeArea.getText()));
     }
     
     public static void main(String[] args) {
