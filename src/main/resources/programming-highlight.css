@@ -1,0 +1,15 @@
+/* programming-highlight.css: Styles for programming language highlighting */
+.keyword { -fx-fill: #0000ff; -fx-font-weight: bold; }
+.string { -fx-fill: #008000; }
+.comment { -fx-fill: #808080; -fx-font-style: italic; }
+.number { -fx-fill: #ff8000; }
+.preprocessor { -fx-fill: #800080; }
+.operator { -fx-fill: #ff0000; }
+
+/* Dark theme overrides */
+.root.dark-theme .keyword { -fx-fill: #569cd6; }
+.root.dark-theme .string { -fx-fill: #ce9178; }
+.root.dark-theme .comment { -fx-fill: #6a9955; }
+.root.dark-theme .number { -fx-fill: #b5cea8; }
+.root.dark-theme .preprocessor { -fx-fill: #c586c0; }
+.root.dark-theme .operator { -fx-fill: #dcdcaa; }

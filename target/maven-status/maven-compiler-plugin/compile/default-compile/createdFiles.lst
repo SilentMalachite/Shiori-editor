@@ -1,9 +1,0 @@
-com/texteditor/TextEditor.class
-com/texteditor/ParagraphFoldingManager.class
-com/texteditor/Main.class
-com/texteditor/ProgrammingLanguageSupport$1.class
-com/texteditor/ProgrammingLanguageSupport.class
-com/texteditor/MarkdownHighlighter.class
-com/texteditor/ProgrammingLanguageSupport$Language.class
-com/texteditor/ParagraphFoldingManager$ParagraphRange.class
-com/texteditor/ThemeManager.class

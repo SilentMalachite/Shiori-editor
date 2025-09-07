@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+echo "[pre-commit] Spotless (apply) 実行中…"
+mvn -q spotless:apply
+
+# 整形により差分が出た場合はステージング
+if ! git diff --quiet --exit-code; then
+  echo "[pre-commit] 整形差分をステージングします…"
+  git add -A
+fi
+
+echo "[pre-commit] テスト実行中…"
+mvn -q -DskipTests=false test
+
+echo "[pre-commit] すべて完了"
+
