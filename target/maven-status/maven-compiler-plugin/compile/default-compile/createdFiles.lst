@@ -1,2 +1,4 @@
-com/texteditor/Main$1.class
+com/texteditor/TextEditor.class
+com/texteditor/MarkdownHighlighter.class
 com/texteditor/Main.class
+com/texteditor/ThemeManager.class
