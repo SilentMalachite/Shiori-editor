@@ -33,7 +33,9 @@ public class ThemeManager {
   /** ダークテーマを適用 ルートに "dark-theme" スタイルクラスを付与/維持する */
   private void applyDarkTheme(Scene scene) {
     Parent root = scene.getRoot();
-    root.getStyleClass().add("dark-theme");
+    if (!root.getStyleClass().contains("dark-theme")) {
+      root.getStyleClass().add("dark-theme");
+    }
   }
 
   /** ライトテーマ（"ライトJa"テーマ）を適用 ルートから "dark-theme" スタイルクラスを除去する */

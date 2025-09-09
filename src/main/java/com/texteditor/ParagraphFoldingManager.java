@@ -13,7 +13,7 @@ public class ParagraphFoldingManager {
   private final CodeArea codeArea;
   private final Set<Integer> foldedParagraphs = new HashSet<>();
   private final Map<Integer, String> foldedContent = new HashMap<>();
-  private boolean ctrlPressed = false;
+  private boolean ctrlPressed = false; // 互換性のため保持（実判定はイベントの修飾キーを見る）
   private boolean enterPressed = false;
 
   // 段落の境界を識別するパターン（見出し、空行、リストなど）
@@ -37,9 +37,10 @@ public class ParagraphFoldingManager {
 
   /** キー押下イベントの処理 */
   private void handleKeyPressed(KeyEvent event) {
-    if (event.getCode() == KeyCode.CONTROL) {
+    if (event.getCode() == KeyCode.CONTROL || event.getCode() == KeyCode.META) {
       ctrlPressed = true;
-    } else if (event.getCode() == KeyCode.ENTER && ctrlPressed) {
+    } else if (event.getCode() == KeyCode.ENTER && (event.isControlDown() || event.isMetaDown())) {
+      // 修飾キーが押下されている状態で Enter が押されたときのみ有効化
       enterPressed = true;
       event.consume(); // デフォルトの改行動作を防ぐ
     }
@@ -47,16 +48,19 @@ public class ParagraphFoldingManager {
 
   /** キー離上イベントの処理 */
   private void handleKeyReleased(KeyEvent event) {
-    if (event.getCode() == KeyCode.CONTROL) {
+    if (event.getCode() == KeyCode.CONTROL || event.getCode() == KeyCode.META) {
       ctrlPressed = false;
+      enterPressed = false;
+    } else if (event.getCode() == KeyCode.ENTER) {
+      // Enter キーが離されたらフラグを解除
       enterPressed = false;
     }
   }
 
   /** マウスクリックイベントの処理 */
   private void handleMouseClicked(MouseEvent event) {
-    if (ctrlPressed && enterPressed) {
-      int caretPosition = codeArea.getCaretPosition();
+    boolean modifierDown = event.isControlDown() || event.isMetaDown();
+    if (modifierDown && enterPressed) {
       int paragraph = codeArea.getCurrentParagraph();
 
       if (isFolded(paragraph)) {
@@ -66,6 +70,8 @@ public class ParagraphFoldingManager {
       }
 
       event.consume();
+      // 一度処理したら誤作動を防ぐため解除
+      enterPressed = false;
     }
   }
 
@@ -84,7 +90,7 @@ public class ParagraphFoldingManager {
     StringBuilder foldedText = new StringBuilder();
     for (int i = range.startParagraph + 1; i <= range.endParagraph; i++) {
       if (i < codeArea.getParagraphs().size()) {
-        foldedText.append(codeArea.getParagraph(i).getText()).append("\\n");
+        foldedText.append(codeArea.getParagraph(i).getText()).append("\n");
       }
     }
 
@@ -137,7 +143,7 @@ public class ParagraphFoldingManager {
     int insertPos =
         codeArea.getAbsolutePosition(
             paragraphIndex, codeArea.getParagraph(paragraphIndex).getText().length());
-    codeArea.insertText(insertPos, "\\n" + content.replace("\\\\n", "\\n"));
+    codeArea.insertText(insertPos, "\n" + content);
 
     // 折りたたみ状態をクリア
     foldedParagraphs.remove(paragraphIndex);

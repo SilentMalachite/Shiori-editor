@@ -118,12 +118,11 @@ public class TextEditor extends Application {
     MenuItem saveAsItem = new MenuItem("名前を付けて保存");
     MenuItem exitItem = new MenuItem("終了");
 
-    // ショートカット設定
-    newItem.setAccelerator(new KeyCodeCombination(KeyCode.N, KeyCombination.CONTROL_DOWN));
-    openItem.setAccelerator(new KeyCodeCombination(KeyCode.O, KeyCombination.CONTROL_DOWN));
-    saveItem.setAccelerator(new KeyCodeCombination(KeyCode.S, KeyCombination.CONTROL_DOWN));
-    // Windows では Ctrl+Q は一般的ではないが、要望に合わせて設定
-    exitItem.setAccelerator(new KeyCodeCombination(KeyCode.Q, KeyCombination.CONTROL_DOWN));
+    // ショートカット設定（プラットフォーム依存の修飾キーに追従: Windows/Linux=Ctrl, macOS=Command）
+    newItem.setAccelerator(new KeyCodeCombination(KeyCode.N, KeyCombination.SHORTCUT_DOWN));
+    openItem.setAccelerator(new KeyCodeCombination(KeyCode.O, KeyCombination.SHORTCUT_DOWN));
+    saveItem.setAccelerator(new KeyCodeCombination(KeyCode.S, KeyCombination.SHORTCUT_DOWN));
+    exitItem.setAccelerator(new KeyCodeCombination(KeyCode.Q, KeyCombination.SHORTCUT_DOWN));
 
     // アクション設定
     newItem.setOnAction(e -> doNew());
