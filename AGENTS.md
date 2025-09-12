@@ -10,7 +10,7 @@
 
 ## ビルド・実行・開発コマンド
 - `mvn clean package` … 依存解決＋JAR作成。
-- `mvn javafx:run` … ローカル起動（`com.texteditor.Main` を実行）。
+- `mvn javafx:run` … ローカル起動（`com.texteditor.TextEditor` を実行）。
 - `mvn test` … テスト実行（未導入の場合は0件）。
 - `mvn spotless:check` … フォーマット検査（`verify` フェーズでも実行）。
 - `mvn spotless:apply` … 自動整形を適用。

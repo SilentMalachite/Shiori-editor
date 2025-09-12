@@ -23,14 +23,18 @@ public class TextEditor extends Application {
 
   private CodeArea codeArea;
   private ThemeManager themeManager;
-  private MarkdownHighlighter markdownHighlighter;
-  private ParagraphFoldingManager foldingManager;
   private ProgrammingLanguageSupport languageSupport;
   private Stage primaryStage;
   private boolean isModified = false;
   private Path currentFile = null;
   private static final int INDENT_SIZE = 4;
   private static final long HIGHLIGHT_DEBOUNCE_MS = 500;
+  // プレビュー関連
+  private javafx.scene.control.SplitPane editorSplit;
+  private javafx.scene.web.WebView previewView;
+  private boolean previewEnabled = false;
+  private com.vladsch.flexmark.parser.Parser mdParser;
+  private com.vladsch.flexmark.html.HtmlRenderer mdRenderer;
 
   @Override
   public void start(Stage primaryStage) {
@@ -38,7 +42,6 @@ public class TextEditor extends Application {
 
     // 機能管理の初期化
     themeManager = new ThemeManager();
-    markdownHighlighter = new MarkdownHighlighter();
     languageSupport = new ProgrammingLanguageSupport();
 
     // UI構築
@@ -92,16 +95,27 @@ public class TextEditor extends Application {
     // テキストエリアの作成
     codeArea = createCodeArea();
 
-    // 段落折りたたみ機能の初期化
-    foldingManager = new ParagraphFoldingManager(codeArea);
+    // 折りたたみ機能の設定
+    new ParagraphFoldingManager(codeArea);
+
+    // Markdown パーサ/レンダラ
+    mdParser = com.vladsch.flexmark.parser.Parser.builder().build();
+    mdRenderer = com.vladsch.flexmark.html.HtmlRenderer.builder().build();
+
+    // プレビューUI
+    previewView = new javafx.scene.web.WebView();
+    previewView.setContextMenuEnabled(false);
+    editorSplit = new javafx.scene.control.SplitPane();
+    editorSplit.setDividerPositions(0.5);
 
     // レイアウト配置
     VBox topContainer = new VBox(menuBar, toolBar);
     root.setTop(topContainer);
-    root.setCenter(codeArea);
+    refreshCenterContent(root);
 
-    // 初期のハイライトを適用
+    // 初期のハイライト/プレビューを適用
     updateSyntaxHighlighting();
+    updatePreview();
 
     return root;
   }
@@ -184,7 +198,16 @@ public class TextEditor extends Application {
           darkModeItem.setSelected(themeManager.isDarkMode());
         });
 
-    viewMenu.getItems().addAll(darkModeItem);
+    CheckMenuItem previewItem = new CheckMenuItem("Markdownプレビュー");
+    previewItem.setSelected(previewEnabled);
+    previewItem.setOnAction(
+        e -> {
+          previewEnabled = previewItem.isSelected();
+          refreshCenterContent((BorderPane) primaryStage.getScene().getRoot());
+          updatePreview();
+        });
+
+    viewMenu.getItems().addAll(darkModeItem, new SeparatorMenuItem(), previewItem);
 
     // ヘルプメニュー
     Menu helpMenu = new Menu("ヘルプ");
@@ -250,6 +273,9 @@ public class TextEditor extends Application {
     newButton.setOnAction(e -> doNew());
     openButton.setOnAction(e -> doOpen());
     saveButton.setOnAction(e -> doSave());
+    boldButton.setOnAction(e -> applyInlineWrap("**", "**"));
+    italicButton.setOnAction(e -> applyInlineWrap("*", "*"));
+    codeButton.setOnAction(e -> applyInlineWrap("`", "`"));
 
     toolBar
         .getItems()
@@ -304,6 +330,7 @@ public class TextEditor extends Application {
         .subscribe(
             ignore -> {
               updateSyntaxHighlighting();
+              updatePreview();
               markModified(true);
             });
 
@@ -363,17 +390,30 @@ public class TextEditor extends Application {
         .addAll(
             new FileChooser.ExtensionFilter("テキスト/Markdown", "*.txt", "*.md", "*.markdown", "*.*"));
     Path last = currentFile;
-    if (last != null) chooser.setInitialDirectory(last.getParent().toFile());
+    if (last != null && last.getParent() != null) {
+      chooser.setInitialDirectory(last.getParent().toFile());
+    }
     var file = chooser.showOpenDialog(primaryStage);
     if (file != null) {
       try {
-        String content = Files.readString(file.toPath(), StandardCharsets.UTF_8);
+        Path filePath = file.toPath();
+        if (!Files.exists(filePath)) {
+          showError("エラー", "指定されたファイルは存在しません: " + filePath);
+          return;
+        }
+        if (!Files.isReadable(filePath)) {
+          showError("エラー", "ファイルを読み取る権限がありません: " + filePath);
+          return;
+        }
+        String content = Files.readString(filePath, StandardCharsets.UTF_8);
         codeArea.replaceText(content);
-        currentFile = file.toPath();
+        currentFile = filePath;
         markModified(false);
         updateSyntaxHighlighting();
       } catch (IOException ex) {
-        showError("ファイルを開けませんでした", ex.getMessage());
+        showError("ファイルを開けませんでした", "ファイルの読み込み中にエラーが発生しました: " + ex.getMessage());
+      } catch (SecurityException ex) {
+        showError("セキュリティエラー", "ファイルにアクセスする権限がありません: " + ex.getMessage());
       }
     }
   }
@@ -452,6 +492,31 @@ public class TextEditor extends Application {
     codeArea.setStyleSpans(0, languageSupport.computeHighlighting(codeArea.getText()));
   }
 
+  /** Markdownプレビュー更新（有効時のみ） */
+  private void updatePreview() {
+    if (!previewEnabled || previewView == null || mdParser == null || mdRenderer == null) return;
+    String md = codeArea.getText();
+    String html = mdRenderer.render(mdParser.parse(md));
+    String styledHtml =
+        "<html><head><meta charset='UTF-8'>"
+            + "<style>body{font:14px -apple-system,Segoe UI,Roboto,\"Noto Sans JP\",sans-serif;padding:12px;}"
+            + "pre,code{font-family:Consolas,\"Courier New\",monospace;}</style>"
+            + "</head><body>"
+            + html
+            + "</body></html>";
+    previewView.getEngine().loadContent(styledHtml);
+  }
+
+  /** センター領域の切替（プレビュー有効/無効） */
+  private void refreshCenterContent(BorderPane root) {
+    if (previewEnabled) {
+      editorSplit.getItems().setAll(codeArea, previewView);
+      root.setCenter(editorSplit);
+    } else {
+      root.setCenter(codeArea);
+    }
+  }
+
   private void markModified(boolean modified) {
     this.isModified = modified;
     String baseTitle = "Markdown対応日本語テキストエディタ";
@@ -508,11 +573,35 @@ public class TextEditor extends Application {
     }
   }
 
+  /** 選択範囲を囲む（未選択時はトークンを挿入してキャレットを内側へ） */
+  private void applyInlineWrap(String open, String close) {
+    int start = codeArea.getSelection().getStart();
+    int end = codeArea.getSelection().getEnd();
+    if (end > start) {
+      String selected = codeArea.getSelectedText();
+      codeArea.replaceSelection(open + selected + close);
+      codeArea.selectRange(start + open.length(), start + open.length() + selected.length());
+    } else {
+      int caret = codeArea.getCaretPosition();
+      codeArea.insertText(caret, open + close);
+      codeArea.displaceCaret(caret + open.length());
+    }
+    updateSyntaxHighlighting();
+    updatePreview();
+    markModified(true);
+  }
+
   private int countLeadingSpacesFrom(int pos) {
-    return countLeadingSpacesBetween(
-        pos,
-        codeArea.getAbsolutePosition(codeArea.getCurrentParagraph(), 0)
-            + codeArea.getParagraph(codeArea.getCurrentParagraph()).length());
+    int paragraph =
+        codeArea
+            .offsetToPosition(pos, org.fxmisc.richtext.model.TwoDimensional.Bias.Forward)
+            .getMajor();
+    int parStart = codeArea.getAbsolutePosition(paragraph, 0);
+    int parEnd = parStart + codeArea.getParagraph(paragraph).length();
+    // pos は段落先頭想定だが、安全のため parStart..parEnd にクランプ
+    int start = Math.max(pos, parStart);
+    int end = parEnd;
+    return countLeadingSpacesBetween(start, end);
   }
 
   private int countLeadingSpacesBetween(int start, int end) {

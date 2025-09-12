@@ -1,11 +1,15 @@
 package com.texteditor;
 
-import java.util.*;
-import java.util.regex.Pattern;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+
+import org.fxmisc.richtext.CodeArea;
+
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
-import org.fxmisc.richtext.CodeArea;
 
 /** 段落折りたたみ機能を管理するクラス Ctrl + Enter + マウスクリックで段落の展開/折りたたみを制御 */
 public class ParagraphFoldingManager {
@@ -13,12 +17,8 @@ public class ParagraphFoldingManager {
   private final CodeArea codeArea;
   private final Set<Integer> foldedParagraphs = new HashSet<>();
   private final Map<Integer, String> foldedContent = new HashMap<>();
-  private boolean ctrlPressed = false; // 互換性のため保持（実判定はイベントの修飾キーを見る）
   private boolean enterPressed = false;
-
-  // 段落の境界を識別するパターン（見出し、空行、リストなど）
-  private static final Pattern PARAGRAPH_BOUNDARY =
-      Pattern.compile("^(#{1,6}\\s+.*|\\s*[-*+]\\s+.*|\\d+\\.\\s+.*|>.*|\\s*$)", Pattern.MULTILINE);
+  private static final String FOLD_MARKER = " [...]";
 
   public ParagraphFoldingManager(CodeArea codeArea) {
     this.codeArea = codeArea;
@@ -27,19 +27,15 @@ public class ParagraphFoldingManager {
 
   /** イベントハンドラーを設定 */
   private void setupEventHandlers() {
-    // キーイベントの処理
-    codeArea.setOnKeyPressed(this::handleKeyPressed);
-    codeArea.setOnKeyReleased(this::handleKeyReleased);
-
-    // マウスイベントの処理
-    codeArea.setOnMouseClicked(this::handleMouseClicked);
+    // 既存ハンドラと競合しないよう addEventHandler を使用
+    codeArea.addEventHandler(KeyEvent.KEY_PRESSED, this::handleKeyPressed);
+    codeArea.addEventHandler(KeyEvent.KEY_RELEASED, this::handleKeyReleased);
+    codeArea.addEventHandler(MouseEvent.MOUSE_CLICKED, this::handleMouseClicked);
   }
 
   /** キー押下イベントの処理 */
   private void handleKeyPressed(KeyEvent event) {
-    if (event.getCode() == KeyCode.CONTROL || event.getCode() == KeyCode.META) {
-      ctrlPressed = true;
-    } else if (event.getCode() == KeyCode.ENTER && (event.isControlDown() || event.isMetaDown())) {
+    if (event.getCode() == KeyCode.ENTER && (event.isControlDown() || event.isMetaDown())) {
       // 修飾キーが押下されている状態で Enter が押されたときのみ有効化
       enterPressed = true;
       event.consume(); // デフォルトの改行動作を防ぐ
@@ -48,10 +44,7 @@ public class ParagraphFoldingManager {
 
   /** キー離上イベントの処理 */
   private void handleKeyReleased(KeyEvent event) {
-    if (event.getCode() == KeyCode.CONTROL || event.getCode() == KeyCode.META) {
-      ctrlPressed = false;
-      enterPressed = false;
-    } else if (event.getCode() == KeyCode.ENTER) {
+    if (event.getCode() == KeyCode.ENTER) {
       // Enter キーが離されたらフラグを解除
       enterPressed = false;
     }
@@ -77,79 +70,94 @@ public class ParagraphFoldingManager {
 
   /** 段落を折りたたむ */
   private void foldParagraph(int paragraphIndex) {
-    if (paragraphIndex < 0 || paragraphIndex >= codeArea.getParagraphs().size()) {
-      return;
-    }
-
-    ParagraphRange range = getParagraphRange(paragraphIndex);
-    if (range.endParagraph <= range.startParagraph) {
-      return; // 折りたたみ対象がない
-    }
-
-    // 折りたたみ対象のテキストを保存
-    StringBuilder foldedText = new StringBuilder();
-    for (int i = range.startParagraph + 1; i <= range.endParagraph; i++) {
-      if (i < codeArea.getParagraphs().size()) {
-        foldedText.append(codeArea.getParagraph(i).getText()).append("\n");
+    try {
+      if (paragraphIndex < 0 || paragraphIndex >= codeArea.getParagraphs().size()) {
+        return;
       }
+
+      ParagraphRange range = getParagraphRange(paragraphIndex);
+      if (range.endParagraph <= range.startParagraph) {
+        return; // 折りたたみ対象がない
+      }
+
+      // 折りたたみ対象のテキストを保存
+      StringBuilder foldedText = new StringBuilder();
+      for (int i = range.startParagraph + 1; i <= range.endParagraph; i++) {
+        if (i < codeArea.getParagraphs().size()) {
+          if (i > range.startParagraph + 1) {
+            foldedText.append("\n");
+          }
+          foldedText.append(codeArea.getParagraph(i).getText());
+        }
+      }
+
+      foldedContent.put(paragraphIndex, foldedText.toString());
+      foldedParagraphs.add(paragraphIndex);
+
+      // テキストを置換（折りたたみ表示）
+      String headerText = codeArea.getParagraph(range.startParagraph).getText();
+      if (headerText.isEmpty()) {
+        return; // ヘッダーが空の場合は折りたたみ不可
+      }
+
+      // 折りたたみ範囲のテキストを削除
+      int startPos = codeArea.getAbsolutePosition(range.startParagraph + 1, 0);
+      int endPos =
+          range.endParagraph < codeArea.getParagraphs().size()
+              ? codeArea.getAbsolutePosition(range.endParagraph + 1, 0)
+              : codeArea.getLength();
+
+      if (startPos < endPos) {
+        codeArea.deleteText(startPos, endPos);
+      }
+
+      // 折りたたみマーカーを追加
+      int headerEndPos = codeArea.getAbsolutePosition(range.startParagraph, headerText.length());
+      codeArea.insertText(headerEndPos, FOLD_MARKER);
+
+      updateFoldingIndicators();
+    } catch (Exception e) {
+      System.err.println("Error folding paragraph: " + e.getMessage());
     }
-
-    foldedContent.put(paragraphIndex, foldedText.toString());
-    foldedParagraphs.add(paragraphIndex);
-
-    // テキストを置換（折りたたみ表示）
-    String headerText = codeArea.getParagraph(range.startParagraph).getText();
-    String foldMarker = " [...]";
-
-    // 折りたたみ範囲のテキストを削除
-    int startPos = codeArea.getAbsolutePosition(range.startParagraph + 1, 0);
-    int endPos =
-        range.endParagraph < codeArea.getParagraphs().size()
-            ? codeArea.getAbsolutePosition(range.endParagraph + 1, 0)
-            : codeArea.getLength();
-
-    if (startPos < endPos) {
-      codeArea.deleteText(startPos, endPos);
-    }
-
-    // 折りたたみマーカーを追加
-    int headerEndPos = codeArea.getAbsolutePosition(range.startParagraph, headerText.length());
-    codeArea.insertText(headerEndPos, foldMarker);
-
-    updateFoldingIndicators();
   }
 
   /** 段落を展開する */
   private void expandParagraph(int paragraphIndex) {
-    if (!foldedParagraphs.contains(paragraphIndex)) {
-      return;
+    try {
+      if (!foldedParagraphs.contains(paragraphIndex)) {
+        return;
+      }
+
+      String content = foldedContent.get(paragraphIndex);
+      if (content == null) {
+        return;
+      }
+
+      // 折りたたみマーカーを削除
+      String currentText = codeArea.getParagraph(paragraphIndex).getText();
+      if (currentText.endsWith(FOLD_MARKER)) {
+        int markerStart = currentText.length() - FOLD_MARKER.length();
+        int absoluteMarkerStart = codeArea.getAbsolutePosition(paragraphIndex, markerStart);
+        int absoluteMarkerEnd = codeArea.getAbsolutePosition(paragraphIndex, currentText.length());
+        codeArea.deleteText(absoluteMarkerStart, absoluteMarkerEnd);
+      }
+
+      // 元のコンテンツを挿入
+      int insertPos =
+          codeArea.getAbsolutePosition(
+              paragraphIndex, codeArea.getParagraph(paragraphIndex).getText().length());
+      if (!content.isEmpty()) {
+        codeArea.insertText(insertPos, "\n" + content);
+      }
+
+      // 折りたたみ状態をクリア
+      foldedParagraphs.remove(paragraphIndex);
+      foldedContent.remove(paragraphIndex);
+
+      updateFoldingIndicators();
+    } catch (Exception e) {
+      System.err.println("Error expanding paragraph: " + e.getMessage());
     }
-
-    String content = foldedContent.get(paragraphIndex);
-    if (content == null) {
-      return;
-    }
-
-    // 折りたたみマーカーを削除
-    String currentText = codeArea.getParagraph(paragraphIndex).getText();
-    if (currentText.endsWith(" [...]")) {
-      int markerStart = currentText.length() - " [...]".length();
-      int absoluteMarkerStart = codeArea.getAbsolutePosition(paragraphIndex, markerStart);
-      int absoluteMarkerEnd = codeArea.getAbsolutePosition(paragraphIndex, currentText.length());
-      codeArea.deleteText(absoluteMarkerStart, absoluteMarkerEnd);
-    }
-
-    // 元のコンテンツを挿入
-    int insertPos =
-        codeArea.getAbsolutePosition(
-            paragraphIndex, codeArea.getParagraph(paragraphIndex).getText().length());
-    codeArea.insertText(insertPos, "\n" + content);
-
-    // 折りたたみ状態をクリア
-    foldedParagraphs.remove(paragraphIndex);
-    foldedContent.remove(paragraphIndex);
-
-    updateFoldingIndicators();
   }
 
   /** 段落の範囲を取得 */
@@ -183,14 +191,19 @@ public class ParagraphFoldingManager {
         }
       }
     }
-    // その他の場合、次の空行まで
+    // その他の場合、次の空行または構造的要素まで
     else {
       for (int i = startParagraph + 1; i < codeArea.getParagraphs().size(); i++) {
         String text = codeArea.getParagraph(i).getText().trim();
-        if (text.isEmpty() || isStructuralElement(text)) {
+        if (text.isEmpty() || text.startsWith("#") || isListItem(text) || text.startsWith(">")) {
           break;
         }
         range.endParagraph = i;
+      }
+      // 範囲が最小1行以上であることを保証
+      if (range.endParagraph == range.startParagraph) {
+        range.endParagraph =
+            Math.min(range.startParagraph + 1, codeArea.getParagraphs().size() - 1);
       }
     }
 
@@ -215,11 +228,6 @@ public class ParagraphFoldingManager {
     return text.matches("^\\s*[-*+]\\s+.*") || text.matches("^\\s*\\d+\\.\\s+.*");
   }
 
-  /** 構造的要素（見出し、リストなど）かどうかを判定 */
-  private boolean isStructuralElement(String text) {
-    return text.startsWith("#") || isListItem(text) || text.startsWith(">");
-  }
-
   /** 段落が折りたたまれているかを確認 */
   private boolean isFolded(int paragraphIndex) {
     return foldedParagraphs.contains(paragraphIndex);
@@ -228,11 +236,9 @@ public class ParagraphFoldingManager {
   /** 折りたたみインジケーターを更新 */
   private void updateFoldingIndicators() {
     // 行番号の横に折りたたみインジケーターを表示
-    // （簡易実装：実際のUI更新は別途実装が必要）
-    for (int foldedParagraph : foldedParagraphs) {
-      // 折りたたみ状態の視覚的インジケーターを追加
-      // 実装例：行番号の背景色を変更、アイコンを追加など
-    }
+    // 実装例: 行番号のカスタム描画で折りたたみ状態を表示
+    // 現在は簡易実装としてログ出力
+    // System.out.println("Folded paragraphs: " + foldedParagraphs);
   }
 
   /** 段落範囲を表すクラス */
