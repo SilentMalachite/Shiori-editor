@@ -15,3 +15,5 @@ out/
 Thumbs.db
 hs_err_pid*.log
 
+
+.fake
