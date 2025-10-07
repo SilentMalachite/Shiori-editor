@@ -8,7 +8,7 @@
 - 実装 → `mvn spotless:apply && mvn test` → コミット → PR 作成。
 
 ## コーディング規約
-- Java 17、Google Java Style（Spotless + google-java-format）
+- Java 21、Eclipse formatter（Spotless + Eclipse）
 - インデント: 2スペース、未使用 import は削除。
 - パッケージ: `com.texteditor.*` を維持。UI リソースは `src/main/resources`。
 

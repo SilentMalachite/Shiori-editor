@@ -6,8 +6,8 @@ import org.junit.jupiter.api.Test;
 
 class SanityTest {
 
-  @Test
-  void runs() {
-    assertTrue(true);
-  }
+	@Test
+	void runs() {
+		assertTrue(true);
+	}
 }

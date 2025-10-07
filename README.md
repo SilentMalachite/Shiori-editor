@@ -1,6 +1,6 @@
 # Shiori Editor — Markdown対応日本語テキストエディタ
 
-Java 17 / JavaFX ベースの軽量テキストエディタです。Markdown のプレビューやシンタックスハイライト、日本語環境に配慮した操作性を提供します。
+Java 21 / JavaFX ベースの軽量テキストエディタです。Markdown のプレビューやシンタックスハイライト、日本語環境に配慮した操作性を提供します。
 
 ## 特長
 
@@ -26,7 +26,7 @@ Java 17 / JavaFX ベースの軽量テキストエディタです。Markdown の
 - **UTF-8エンコーディング**: ファイルの読み書きをUTF-8で完全対応
 
 ## 必要要件
-- JDK 17 以上
+- JDK 21 以上
 - Maven 3.8 以上（`mvn -v` で確認）
 
 ## 使い方（ローカル実行）
@@ -43,7 +43,7 @@ mvn clean package
 ## テスト & 整形
 ```bash
 mvn test                # JUnit 5 によるテスト実行
-mvn spotless:apply      # google-java-format による自動整形
+mvn spotless:apply      # Eclipse formatter による自動整形
 ```
 pre-commit フックが同梱されており、コミット時に整形とテストを自動実行します。
 

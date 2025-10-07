@@ -1,7 +1,7 @@
 # Repository Guidelines
 
 ## プロジェクト構成 & モジュール
-- 技術スタック: Java 17, Maven, JavaFX, RichTextFX, FlexMark。
+- 技術スタック: Java 21, Maven, JavaFX, RichTextFX, FlexMark。
 - 標準 Maven レイアウト:
   - `src/main/java` … アプリ本体（パッケージ: `com.texteditor.*`）
   - `src/main/resources` … リソース（例: `app.css`, `markdown-highlight.css`, `programming-highlight.css`）
@@ -14,13 +14,13 @@
 - `mvn test` … テスト実行（未導入の場合は0件）。
 - `mvn spotless:check` … フォーマット検査（`verify` フェーズでも実行）。
 - `mvn spotless:apply` … 自動整形を適用。
-- 前提: JDK 17, Maven 3.8+（`mvn -v` で確認）。
+- 前提: JDK 21, Maven 3.8+（`mvn -v` で確認）。
 
 ## コーディング規約・命名
 - インデント: スペース2。UTF-8。行末に不要な空白を残さない。
 - Java 命名: クラス/インターフェースは `PascalCase`、メソッド/変数は `camelCase`、定数は `UPPER_SNAKE_CASE`。
 - パッケージは `com.texteditor.*` を維持。UI リソースは `src/main/resources` に配置。
-- フォーマッタ/リンター: Spotless + google-java-format 導入済み（未使用importは自動削除）。`mvn spotless:check` をCI/`verify`で、コミット前は `mvn spotless:apply` を推奨。
+- フォーマッタ/リンター: Spotless + Eclipse formatter 導入済み（未使用importは自動削除）。`mvn spotless:check` をCI/`verify`で、コミット前は `mvn spotless:apply` を推奨。
 
 ## テスト方針
 - フレームワーク: JUnit 5（Jupiter）導入済み。Surefire 3.x で実行。
@@ -47,4 +47,4 @@
 
 ## Agent向けメモ
 - 本ファイルのスコープはリポジトリ全体。`target/` は書き換え禁止。
-- 既存構成/命名を尊重し、不要なリネームを避ける。Java 17 前提でビルド。
+- 既存構成/命名を尊重し、不要なリネームを避ける。Java 21 前提でビルド。

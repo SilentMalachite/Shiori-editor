@@ -6,14 +6,14 @@ import javafx.stage.Stage;
 /** アプリケーションのエントリーポイント TextEditorクラスを起動する */
 public class Main extends Application {
 
-  @Override
-  public void start(Stage primaryStage) {
-    // TextEditorクラスに処理を委譲
-    TextEditor textEditor = new TextEditor();
-    textEditor.start(primaryStage);
-  }
+	@Override
+	public void start(Stage primaryStage) {
+		// TextEditorクラスに処理を委譲
+		TextEditor textEditor = new TextEditor();
+		textEditor.start(primaryStage);
+	}
 
-  public static void main(String[] args) {
-    launch(args);
-  }
+	public static void main(String[] args) {
+		launch(args);
+	}
 }
