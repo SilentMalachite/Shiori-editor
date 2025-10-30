@@ -17,12 +17,31 @@ repositories {
     maven("https://maven.pkg.jetbrains.space/public/p/compose/dev")
 }
 
+// JavaFX プラットフォーム判定（WebView 用）
+val javaFxVersion = "21"
+val osName = System.getProperty("os.name").lowercase()
+val osArch = System.getProperty("os.arch").lowercase()
+val javaFxPlatform =
+    when {
+        osName.contains("mac") && (osArch.contains("aarch64") || osArch.contains("arm")) ->
+            "mac-aarch64"
+        osName.contains("mac") -> "mac"
+        osName.contains("win") -> "win"
+        else -> "linux"
+    }
+
 dependencies {
     // Compose Desktop
     implementation(compose.desktop.currentOs)
 
     // FlexMark for Markdown parsing
     implementation("com.vladsch.flexmark:flexmark-all:0.64.8")
+
+    // JavaFX (WebView)
+    implementation("org.openjfx:javafx-base:$javaFxVersion:$javaFxPlatform")
+    implementation("org.openjfx:javafx-graphics:$javaFxVersion:$javaFxPlatform")
+    implementation("org.openjfx:javafx-controls:$javaFxVersion:$javaFxPlatform")
+    implementation("org.openjfx:javafx-web:$javaFxVersion:$javaFxPlatform")
 
     // Testing
     testImplementation(kotlin("test"))

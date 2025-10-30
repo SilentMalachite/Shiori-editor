@@ -1,6 +1,7 @@
 package com.texteditor
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -8,11 +9,18 @@ import androidx.compose.material.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.awt.SwingPanel
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.key.*
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.intl.Locale
+import androidx.compose.ui.text.intl.LocaleList
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Window
@@ -23,6 +31,10 @@ import com.vladsch.flexmark.parser.Parser
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 import java.nio.file.Path
+import javafx.application.Platform
+import javafx.embed.swing.JFXPanel
+import javafx.scene.Scene
+import javafx.scene.web.WebView
 import javax.swing.JFileChooser
 import javax.swing.filechooser.FileNameExtensionFilter
 
@@ -33,7 +45,7 @@ fun startTextEditor() = application {
     val languageSupport = remember { ProgrammingLanguageSupport() }
     val foldingManager = remember { ParagraphFoldingManager() }
 
-    var text by remember { mutableStateOf(getDefaultInitialText()) }
+    var text by remember { mutableStateOf(TextFieldValue(getDefaultInitialText())) }
     var currentFile by remember { mutableStateOf<Path?>(null) }
     var isModified by remember { mutableStateOf(false) }
     var previewEnabled by remember { mutableStateOf(false) }
@@ -63,6 +75,7 @@ fun startTextEditor() = application {
             else "" + "Markdown対応日本語テキストエディタ" + (currentFile?.let { " - ${it.fileName}" } ?: ""),
         state = windowState
     ) {
+        // Ctrl/⌘ + Enter を検知（次のクリックと組み合わせてフォールディング）
         MaterialTheme(
             colors =
                 if (darkMode) {
@@ -95,7 +108,21 @@ fun startTextEditor() = application {
                     )
                 }
             ) { padding ->
-                Column(modifier = Modifier.fillMaxSize().padding(padding)) {
+                Column(
+                    modifier =
+                        Modifier.fillMaxSize().padding(padding).onPreviewKeyEvent { event ->
+                            if (
+                                event.type == KeyEventType.KeyDown &&
+                                    event.key == Key.Enter &&
+                                    (event.isCtrlPressed || event.isMetaPressed)
+                            ) {
+                                ctrlEnterPressed = true
+                                true
+                            } else {
+                                false
+                            }
+                        }
+                ) {
                     // ツールバー
                     ToolbarSection(
                         colors = colors,
@@ -105,7 +132,7 @@ fun startTextEditor() = application {
                                     doSave(currentFile, text) { currentFile = it }
                                 }
                             ) {
-                                text = getDefaultInitialText()
+                                text = TextFieldValue(getDefaultInitialText())
                                 currentFile = null
                                 isModified = false
                             }
@@ -118,7 +145,7 @@ fun startTextEditor() = application {
                             ) {
                                 openFile { file, content ->
                                     currentFile = file
-                                    text = content
+                                    text = TextFieldValue(content)
                                     isModified = false
                                 }
                             }
@@ -135,22 +162,16 @@ fun startTextEditor() = application {
                             }
                         },
                         onBoldClick = {
-                            applyInlineWrap("**", "**", text) {
-                                text = it
-                                isModified = true
-                            }
+                            text = applyInlineWrap("**", "**", text)
+                            isModified = true
                         },
                         onItalicClick = {
-                            applyInlineWrap("*", "*", text) {
-                                text = it
-                                isModified = true
-                            }
+                            text = applyInlineWrap("*", "*", text)
+                            isModified = true
                         },
                         onCodeClick = {
-                            applyInlineWrap("`", "`", text) {
-                                text = it
-                                isModified = true
-                            }
+                            text = applyInlineWrap("`", "`", text)
+                            isModified = true
                         },
                         selectedLanguage = selectedLanguage,
                         onLanguageChanged = { lang ->
@@ -182,10 +203,28 @@ fun startTextEditor() = application {
                     Row(modifier = Modifier.fillMaxSize()) {
                         // エディタ
                         EditorSection(
-                            text = text,
-                            onTextChange = {
+                            value = text,
+                            onValueChange = {
                                 text = it
                                 isModified = true
+                            },
+                            onToggleFoldAtLine = { lineIndex ->
+                                if (ctrlEnterPressed) {
+                                    val original = text.text
+                                    val newText =
+                                        if (foldingManager.isFolded(lineIndex)) {
+                                            foldingManager.expandParagraph(lineIndex, original)
+                                        } else {
+                                            foldingManager.foldParagraph(lineIndex, original)
+                                        }
+                                    text =
+                                        text.copy(
+                                            text = newText,
+                                            selection = TextRange(newText.length)
+                                        )
+                                    ctrlEnterPressed = false
+                                    isModified = true
+                                }
                             },
                             colors = colors,
                             languageSupport = languageSupport,
@@ -197,7 +236,7 @@ fun startTextEditor() = application {
                         // プレビュー
                         if (previewEnabled) {
                             PreviewSection(
-                                text = text,
+                                text = text.text,
                                 mdParser = mdParser,
                                 mdRenderer = mdRenderer,
                                 colors = colors,
@@ -305,13 +344,15 @@ fun MenuBarSection(
 
 @Composable
 fun EditorSection(
-    text: String,
-    onTextChange: (String) -> Unit,
+    value: TextFieldValue,
+    onValueChange: (TextFieldValue) -> Unit,
+    onToggleFoldAtLine: (Int) -> Unit,
     colors: ThemeColors,
     languageSupport: ProgrammingLanguageSupport,
     darkMode: Boolean,
     modifier: Modifier = Modifier
 ) {
+    val text = value.text
     val highlightedText =
         remember(text, languageSupport.getCurrentLanguage(), darkMode) {
             languageSupport.computeHighlighting(text, darkMode)
@@ -333,21 +374,40 @@ fun EditorSection(
                         text = "${index + 1}",
                         fontSize = 12.sp,
                         color = colors.text.copy(alpha = 0.6f),
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                        modifier =
+                            Modifier.padding(horizontal = 8.dp, vertical = 2.dp).pointerInput(
+                                Unit
+                            ) {
+                                detectTapGestures(onTap = { onToggleFoldAtLine(index) })
+                            }
                     )
                 }
             }
-
-            // エディタ
             TextField(
-                value = text,
-                onValueChange = onTextChange,
-                modifier = Modifier.weight(1f).fillMaxHeight(),
+                value = value,
+                onValueChange = onValueChange,
+                modifier =
+                    Modifier.weight(1f).fillMaxHeight().onPreviewKeyEvent { event ->
+                        if (event.type == KeyEventType.KeyDown && event.key == Key.Tab) {
+                            val newVal =
+                                if (event.isShiftPressed) unindentSelection(value)
+                                else indentSelection(value)
+                            if (newVal != null) {
+                                onValueChange(newVal)
+                                true
+                            } else {
+                                false
+                            }
+                        } else {
+                            false
+                        }
+                    },
                 textStyle =
                     TextStyle(
-                        fontFamily = FontFamily.Monospace,
+                        fontFamily = preferredFontFamily(languageSupport.getCurrentLanguage()),
                         fontSize = 14.sp,
-                        color = colors.text
+                        color = colors.text,
+                        localeList = LocaleList(Locale("ja-JP"))
                     ),
                 colors =
                     TextFieldDefaults.textFieldColors(
@@ -381,7 +441,7 @@ fun PreviewSection(
             <meta charset="UTF-8">
             <style>
                 body {
-                    font-family: -apple-system, "Segoe UI", Roboto, "Noto Sans JP", sans-serif;
+                    font-family: -apple-system, "Yu Gothic UI", Meiryo, "MS Gothic", "Noto Sans JP", "Segoe UI", Roboto, sans-serif;
                     padding: 12px;
                     background-color: ${if (colors == DarkThemeColors) "#1e1e1e" else "#ffffff"};
                     color: ${if (colors == DarkThemeColors) "#f0f0f0" else "#323130"};
@@ -396,6 +456,7 @@ fun PreviewSection(
                     padding: 12px;
                     overflow-x: auto;
                 }
+                a { color: ${colors.link.toArgbCss()}; }
             </style>
         </head>
         <body>
@@ -406,23 +467,58 @@ fun PreviewSection(
                 .trimIndent()
         }
 
-    // Compose DesktopにはWebViewコンポーネントがないため、テキスト表示で代替
-    // 実際の実装では、JavaFXのWebViewを統合するか、Compose for Webを使用
-    Column(
+    HtmlWebView(html = html, modifier = modifier)
+}
+
+@Composable
+private fun HtmlWebView(html: String, modifier: Modifier = Modifier) {
+    // JavaFX 初期化
+    remember { runCatching { Platform.startup {} } }
+    SwingPanel(
+        factory = {
+            val panel = JFXPanel()
+            Platform.runLater {
+                val webView = WebView()
+                val engine = webView.engine
+                engine.loadContent(html)
+                panel.scene = Scene(webView)
+            }
+            panel
+        },
+        update = { panel ->
+            Platform.runLater {
+                val webView =
+                    (panel.scene?.root as? WebView)
+                        ?: run {
+                            val wv = WebView()
+                            panel.scene = Scene(wv)
+                            wv
+                        }
+                webView.engine.loadContent(html)
+            }
+        },
         modifier =
-            modifier
-                .background(
-                    if (colors == DarkThemeColors) DarkThemeColors.background
-                    else LightThemeColors.background
-                )
-                .verticalScroll(rememberScrollState())
-                .padding(16.dp)
-    ) {
-        Text(
-            text = "プレビュー機能はHTMLレンダリングが必要です。\n\nレンダリングされたHTML:\n\n$html",
-            color = if (colors == DarkThemeColors) DarkThemeColors.text else LightThemeColors.text,
-            fontSize = 12.sp
-        )
+            modifier.background(
+                if (html.contains("#1e1e1e")) DarkThemeColors.background
+                else LightThemeColors.background
+            )
+    )
+}
+
+private fun Color.toArgbCss(): String {
+    // Convert Compose Color (0..1) to CSS hex
+    val a = (alpha * 255).toInt().coerceIn(0, 255)
+    val r = (red * 255).toInt().coerceIn(0, 255)
+    val g = (green * 255).toInt().coerceIn(0, 255)
+    val b = (blue * 255).toInt().coerceIn(0, 255)
+    return "#%02x%02x%02x".format(r, g, b)
+}
+
+private fun preferredFontFamily(lang: Language): FontFamily {
+    return when (lang) {
+        Language.MARKDOWN,
+        Language.PLAIN_TEXT -> FontFamily.SansSerif
+        else -> FontFamily.Monospace
     }
 }
 
@@ -444,13 +540,13 @@ fun openFile(onFileLoaded: (Path, String) -> Unit) {
     }
 }
 
-fun doSave(currentFile: Path?, text: String, onSaved: (Path?) -> Unit): Boolean {
+fun doSave(currentFile: Path?, text: TextFieldValue, onSaved: (Path?) -> Unit): Boolean {
     if (currentFile == null) {
         return false
     }
     return ErrorHandler.safeExecute(
         {
-            Files.writeString(currentFile, text, StandardCharsets.UTF_8)
+            Files.writeString(currentFile, text.text, StandardCharsets.UTF_8)
             onSaved(currentFile)
         },
         "保存に失敗しました",
@@ -458,7 +554,7 @@ fun doSave(currentFile: Path?, text: String, onSaved: (Path?) -> Unit): Boolean 
     )
 }
 
-fun saveAsFile(text: String, onSaved: (Path) -> Unit) {
+fun saveAsFile(text: TextFieldValue, onSaved: (Path) -> Unit) {
     val chooser = JFileChooser()
     chooser.fileFilter = FileNameExtensionFilter("Markdown (*.md)", "md")
     chooser.addChoosableFileFilter(FileNameExtensionFilter("テキスト (*.txt)", "txt"))
@@ -468,7 +564,7 @@ fun saveAsFile(text: String, onSaved: (Path) -> Unit) {
         val file = chooser.selectedFile.toPath()
         ErrorHandler.safeExecute(
             {
-                Files.writeString(file, text, StandardCharsets.UTF_8)
+                Files.writeString(file, text.text, StandardCharsets.UTF_8)
                 onSaved(file)
             },
             "保存に失敗しました",
@@ -483,10 +579,20 @@ fun confirmSaveIfModified(isModified: Boolean, onSave: () -> Unit): Boolean {
     return true
 }
 
-fun applyInlineWrap(open: String, close: String, text: String, onTextChange: (String) -> Unit) {
-    // 簡易実装（実際には選択範囲を処理）
-    val newText = text + open + close
-    onTextChange(newText)
+fun applyInlineWrap(open: String, close: String, value: TextFieldValue): TextFieldValue {
+    val text = value.text
+    val selStart = value.selection.start.coerceIn(0, text.length)
+    val selEnd = value.selection.end.coerceIn(0, text.length)
+    val start = minOf(selStart, selEnd)
+    val end = maxOf(selStart, selEnd)
+    val selected = text.substring(start, end)
+    val newText = text.substring(0, start) + open + selected + close + text.substring(end)
+    val newCursor =
+        if (selected.isEmpty()) start + open.length else start + open.length + selected.length
+    val newSel =
+        if (selected.isEmpty()) TextRange(newCursor)
+        else TextRange(start + open.length, start + open.length + selected.length)
+    return value.copy(text = newText, selection = newSel)
 }
 
 fun getDefaultInitialText(): String {
@@ -519,4 +625,65 @@ public class HelloWorld {
 - **段落折りたたみ**: Ctrl + Enter を押しながらマウスクリックで段落を折りたたみ/展開
 - **テーマ切り替え**: 表示メニューからダークモードを選択
 - **言語切り替え**: ツールバーの言語コンボボックスから選択"""
+}
+
+private fun indentSelection(value: TextFieldValue): TextFieldValue? {
+    val text = value.text
+    val selStart = value.selection.start
+    val selEnd = value.selection.end
+    if (selStart < 0 || selEnd < 0) return null
+    val startLineStart =
+        text.lastIndexOf('\n', startIndex = (minOf(selStart, selEnd) - 1).coerceAtLeast(0)) + 1
+    val endLineEndIdx =
+        text.indexOf('\n', startIndex = maxOf(selStart, selEnd)).let {
+            if (it == -1) text.length else it
+        }
+    val segment = text.substring(startLineStart, endLineEndIdx)
+    val indented = segment.lines().joinToString("\n") { "    " + it }
+    val newText = text.substring(0, startLineStart) + indented + text.substring(endLineEndIdx)
+    val deltaPerLine = 4
+    val linesAffected = segment.count { it == '\n' } + 1
+    val newStart = value.selection.start + deltaPerLine
+    val newEnd = value.selection.end + deltaPerLine * linesAffected
+    return value.copy(text = newText, selection = TextRange(newStart, newEnd))
+}
+
+private fun unindentSelection(value: TextFieldValue): TextFieldValue? {
+    val text = value.text
+    val selStart = value.selection.start
+    val selEnd = value.selection.end
+    if (selStart < 0 || selEnd < 0) return null
+    val startLineStart =
+        text.lastIndexOf('\n', startIndex = (minOf(selStart, selEnd) - 1).coerceAtLeast(0)) + 1
+    val endLineEndIdx =
+        text.indexOf('\n', startIndex = maxOf(selStart, selEnd)).let {
+            if (it == -1) text.length else it
+        }
+    val segment = text.substring(startLineStart, endLineEndIdx)
+    var removedTotal = 0
+    val unindented =
+        segment.lines().joinToString("\n") {
+            val removed =
+                when {
+                    it.startsWith("\t") -> 1
+                    it.startsWith("    ") -> 4
+                    it.startsWith("   ") -> 3
+                    it.startsWith("  ") -> 2
+                    it.startsWith(" ") -> 1
+                    else -> 0
+                }
+            removedTotal += removed
+            it.drop(removed)
+        }
+    val newText = text.substring(0, startLineStart) + unindented + text.substring(endLineEndIdx)
+    val newStart =
+        (value.selection.start - 1).let {
+            if (it < startLineStart) value.selection.start
+            else value.selection.start - minOf(4, value.selection.start - startLineStart)
+        }
+    val newEnd = value.selection.end - removedTotal
+    return value.copy(
+        text = newText,
+        selection = TextRange(newStart.coerceAtLeast(0), newEnd.coerceAtLeast(0))
+    )
 }

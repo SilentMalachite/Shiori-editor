@@ -94,6 +94,19 @@ gradle build
 ./gradlew spotlessCheck
 ```
 
+### テストカバレッジ
+
+プロジェクトには89個のユニットテストが含まれています：
+
+- **ErrorHandler**: 9テスト - エラーハンドリングとログ機能
+- **ParagraphFoldingManager**: 17テスト - 段落折りたたみ機能
+- **ProgrammingLanguageSupport**: 17テスト - シンタックスハイライト（Java, Go, C++, Haskell）
+- **MarkdownHighlighter**: 22テスト - Markdown構文ハイライト
+- **ThemeManager**: 5テスト - テーマ切り替え機能
+- **TextEditorUtils**: 19テスト - テキスト編集ユーティリティ関数
+
+すべてのテストは `src/test/kotlin/com/texteditor/` に配置されています。
+
 pre-commit フックが同梱されており、コミット時に整形とテストを自動実行します。
 有効化するには: `git config core.hooksPath .githooks`
 
