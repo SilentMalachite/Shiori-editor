@@ -24,7 +24,7 @@ assignees: ''
 ## 環境
 - OS/バージョン:
 - JDK: 
-- 実行方法: `mvn javafx:run` / パッケージ実行 など
+- 実行方法: `./gradlew run` / パッケージ実行 など
 
 ## 備考
 

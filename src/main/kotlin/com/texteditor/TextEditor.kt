@@ -36,6 +36,7 @@ import javafx.embed.swing.JFXPanel
 import javafx.scene.Scene
 import javafx.scene.web.WebView
 import javax.swing.JFileChooser
+import javax.swing.JOptionPane
 import javax.swing.filechooser.FileNameExtensionFilter
 
 /** Markdown対応日本語テキストエディタのメインクラス */
@@ -470,10 +471,21 @@ fun PreviewSection(
     HtmlWebView(html = html, modifier = modifier)
 }
 
+// JavaFX Platform の初期化状態を管理（一度だけ実行されるようにする）
+private var javafxInitialized = false
+private val javafxInitLock = Any()
+
 @Composable
 private fun HtmlWebView(html: String, modifier: Modifier = Modifier) {
-    // JavaFX 初期化
-    remember { runCatching { Platform.startup {} } }
+    // JavaFX 初期化（一度だけ実行されるようにする）
+    LaunchedEffect(Unit) {
+        synchronized(javafxInitLock) {
+            if (!javafxInitialized) {
+                runCatching { Platform.startup {} }
+                javafxInitialized = true
+            }
+        }
+    }
     SwingPanel(
         factory = {
             val panel = JFXPanel()
@@ -575,8 +587,25 @@ fun saveAsFile(text: TextFieldValue, onSaved: (Path) -> Unit) {
 
 fun confirmSaveIfModified(isModified: Boolean, onSave: () -> Unit): Boolean {
     if (!isModified) return true
-    // 簡易実装（実際にはダイアログを表示）
-    return true
+
+    // 保存確認ダイアログを表示
+    val result =
+        JOptionPane.showConfirmDialog(
+            null,
+            "未保存の変更があります。保存しますか？",
+            "保存確認",
+            JOptionPane.YES_NO_CANCEL_OPTION,
+            JOptionPane.QUESTION_MESSAGE
+        )
+
+    return when (result) {
+        JOptionPane.YES_OPTION -> {
+            onSave()
+            true
+        }
+        JOptionPane.NO_OPTION -> true // 保存せずに続行
+        else -> false // キャンセル
+    }
 }
 
 fun applyInlineWrap(open: String, close: String, value: TextFieldValue): TextFieldValue {

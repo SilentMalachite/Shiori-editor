@@ -66,6 +66,11 @@ compose.desktop {
             packageName = "Shiori Editor"
             packageVersion = "1.0.0"
 
+            // アイコンファイルが存在する場合のみ設定（オプション）
+            // アイコンファイルを追加する場合は、以下のパスに配置してください：
+            // - macOS: src/main/resources/icon.icns
+            // - Windows: src/main/resources/icon.ico
+            // - Linux: src/main/resources/icon.png
             macOS {
                 val iconPath = project.file("src/main/resources/icon.icns")
                 if (iconPath.exists()) {

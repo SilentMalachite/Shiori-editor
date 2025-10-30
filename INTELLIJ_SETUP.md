@@ -6,7 +6,7 @@
 
 - IntelliJ IDEA 2023.1以降（KotlinとCompose Desktopのサポートが必要）
 - JDK 21以上
-- Maven 3.8以上（またはMaven Wrapperを使用）
+- Gradle 8.5以上（Gradle Wrapperを使用するため、別途インストール不要）
 
 ## プロジェクトを開く
 
@@ -14,13 +14,14 @@
 
 2. **プロジェクトを開く**
    - `File` > `Open...`を選択
-   - プロジェクトのルートディレクトリ（`pom.xml`があるディレクトリ）を選択
+   - プロジェクトのルートディレクトリ（`build.gradle.kts`があるディレクトリ）を選択
    - `Open`をクリック
 
-3. **Mavenプロジェクトとして認識**
-   - IntelliJ IDEAが自動的にMavenプロジェクトとして認識します
-   - 右下に通知が表示された場合、`Import Maven Project`をクリック
+3. **Gradleプロジェクトとして認識**
+   - IntelliJ IDEAが自動的にGradleプロジェクトとして認識します
+   - 右下に通知が表示された場合、`Import Gradle Project`をクリック
    - 依存関係のダウンロードが自動的に開始されます
+   - 初回起動時はGradleの同期に時間がかかる場合があります
 
 ## 初回セットアップ
 
@@ -32,14 +33,15 @@
 4. `Project language level`を`21`に設定
 5. `Apply` > `OK`
 
-### 2. Maven設定の確認
+### 2. Gradle設定の確認
 
 1. `File` > `Settings` (⌘, / Ctrl+Alt+S)
-2. `Build, Execution, Deployment` > `Build Tools` > `Maven`
+2. `Build, Execution, Deployment` > `Build Tools` > `Gradle`
 3. 以下を確認：
-   - `Maven home path`: システムのMaven、またはMaven Wrapper
-   - `User settings file`: Maven設定ファイルのパス
-   - `Local repository`: ローカルリポジトリのパス
+   - `Build and run using`: `Gradle`を選択（推奨）
+   - `Run tests using`: `Gradle`を選択（推奨）
+   - `Gradle JVM`: `Project SDK (21)`を選択
+   - `Gradle home`: Gradle Wrapperを使用する場合は自動設定されます
 
 ### 3. Kotlinプラグインの確認
 
@@ -68,36 +70,46 @@ Compose Desktop向けの機能を使用する場合：
 3. 以下を設定：
    - **Name**: `Shiori Editor`
    - **Main class**: `com.texteditor.MainKt`
-   - **Use classpath of module**: `markdown-text-editor.main`
+   - **Use classpath of module**: `shiori-editor.main`
    - **JRE**: `21`（Project SDK）
 4. `Apply` > `OK`
 
 ## ビルドと実行
 
-### Mavenコマンドを使用
+### Gradleコマンドを使用
 
 ターミナルで以下を実行：
 
 ```bash
 # 依存関係のダウンロードとコンパイル
-./mvnw clean compile
+./gradlew build
 
 # アプリケーションの実行
-./mvnw compose:desktop:run
+./gradlew run
 
 # JARファイルの作成
-./mvnw clean package
+./gradlew jar
+
+# ネイティブアプリケーションの作成（macOS）
+./gradlew packageDmg
+
+# ネイティブアプリケーションの作成（Windows）
+./gradlew packageMsi
+
+# ネイティブアプリケーションの作成（Linux）
+./gradlew packageDeb
 ```
 
-### IntelliJ IDEAのMavenツールウィンドウを使用
+### IntelliJ IDEAのGradleツールウィンドウを使用
 
-1. 右側の`Maven`タブを開く
-2. `markdown-text-editor` > `Lifecycle`を展開
+1. 右側の`Gradle`タブを開く
+2. `shiori-editor` > `Tasks`を展開
 3. 実行したいタスクをダブルクリック：
-   - `clean`: ビルド成果物を削除
-   - `compile`: コンパイル
-   - `package`: JARファイルを作成
+   - `build`: ビルド
+   - `run`: アプリケーションを実行
    - `test`: テストを実行
+   - `spotlessApply`: コードフォーマットを適用
+   - `spotlessCheck`: コードフォーマットをチェック
 
 ## コードフォーマット
 
@@ -113,10 +125,13 @@ Compose Desktop向けの機能を使用する場合：
 
 ```bash
 # フォーマットの確認
-./mvnw spotless:check
+./gradlew spotlessCheck
 
 # フォーマットの適用
-./mvnw spotless:apply
+./gradlew spotlessApply
+
+# または、カスタムタスクを使用
+./gradlew format
 ```
 
 ## デバッグ
@@ -131,19 +146,26 @@ Compose Desktop向けの機能を使用する場合：
 
 1. `File` > `Invalidate Caches...`
 2. `Invalidate and Restart`を選択
-3. Mavenツールウィンドウで`Reload All Maven Projects`をクリック
+3. Gradleツールウィンドウで`Reload Gradle Project`をクリック
 
 ### Compose Desktopのクラスが見つからない
 
 1. `File` > `Project Structure` > `Libraries`
 2. Compose Desktopの依存関係が正しく追加されているか確認
-3. Mavenツールウィンドウで`Reload All Maven Projects`をクリック
+3. Gradleツールウィンドウで`Reload Gradle Project`をクリック
 
 ### Kotlinコードが認識されない
 
 1. `File` > `Project Structure` > `Modules`
-2. `markdown-text-editor.main`モジュールで`src/main/kotlin`が`Sources`として認識されているか確認
+2. `shiori-editor.main`モジュールで`src/main/kotlin`が`Sources`として認識されているか確認
 3. 認識されていない場合、フォルダを右クリック > `Mark Directory as` > `Sources Root`
+
+### Gradleの同期が失敗する
+
+1. Gradleツールウィンドウで`Reload Gradle Project`をクリック
+2. プロジェクトを閉じて再度開く
+3. `File` > `Invalidate Caches...` > `Invalidate and Restart`
+4. JDK 21が正しく設定されているか確認
 
 ## 便利な機能
 
@@ -164,3 +186,4 @@ IntelliJ IDEAの強力なリファクタリング機能を使用して、Kotlin�
 - [IntelliJ IDEA Documentation](https://www.jetbrains.com/help/idea/)
 - [Kotlin Documentation](https://kotlinlang.org/docs/home.html)
 - [Compose Desktop Documentation](https://www.jetbrains.com/lp/compose-multiplatform/)
+- [Gradle Documentation](https://docs.gradle.org/)

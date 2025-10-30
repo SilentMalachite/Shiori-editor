@@ -66,7 +66,9 @@ gradle run
 gradle build
 ```
 
-生成物は `build/libs/` 配下へ出力されます。
+生成物は以下のディレクトリに出力されます：
+- JARファイル: `build/libs/`
+- ネイティブパッケージ（DMG/MSI/DEB）: `build/compose/binaries/main/`
 
 ## ネイティブアプリケーションの作成
 

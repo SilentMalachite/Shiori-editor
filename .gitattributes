@@ -4,10 +4,6 @@
 # Force LF line endings for shell scripts
 *.sh text eol=lf
 
-# Force LF line endings for Maven wrapper
-mvnw text eol=lf
-mvnw.cmd text eol=crlf
-
 # Kotlin source files
 *.kt text eol=lf
 

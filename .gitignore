@@ -1,5 +1,4 @@
 # Build outputs
-target/
 out/
 build/
 .gradle/
