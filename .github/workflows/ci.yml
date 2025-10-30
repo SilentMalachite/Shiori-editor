@@ -11,14 +11,18 @@ jobs:
       with:
         java-version: '21'
         distribution: 'temurin'
-    - name: Build with Maven
-      run: mvn clean package
+    - name: Setup Gradle
+      uses: gradle/actions/setup-gradle@v3
+    - name: Build with Gradle
+      run: ./gradlew build
     - name: Run tests
-      run: mvn test
-    - name: Create package
-      run: mvn jpackage:jpackage
+      run: ./gradlew test
+    - name: Check code formatting
+      run: ./gradlew spotlessCheck
+    - name: Create DMG package
+      run: ./gradlew packageDmg
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
         name: shiori-editor-dmg
-        path: target/jpackage/Shiori Editor-1.0.0.dmg
+        path: build/compose/binaries/main/dmg/*.dmg
