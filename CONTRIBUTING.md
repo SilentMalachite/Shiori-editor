@@ -5,15 +5,15 @@
 ## 開発フロー
 - Issue を検索し、重複がなければ作成（バグ/提案はテンプレート利用）。
 - フォーク or ブランチ作成（例: `feat/markdown-preview`, `fix/crash-on-startup`）。
-- 実装 → `mvn spotless:apply && mvn test` → コミット → PR 作成。
+- 実装 → `./gradlew spotlessApply && ./gradlew test` → コミット → PR 作成。
 
 ## コーディング規約
-- Java 21、Eclipse formatter（Spotless + Eclipse）
+- Kotlin 1.9.22 + JDK 21、ktfmt formatter（Spotless + ktfmt）
 - インデント: 2スペース、未使用 import は削除。
 - パッケージ: `com.texteditor.*` を維持。UI リソースは `src/main/resources`。
 
 ## テスト
-- JUnit 5（Jupiter）。`src/test/java` に `*Test.java`。
+- JUnit 5（Jupiter）+ Kotlin Test。`src/test/kotlin` に `*Test.kt`。
 - コアロジックにはユニットテストを追加。I/O は可能な限りモック化。
 
 ## コミット/PR

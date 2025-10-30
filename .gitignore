@@ -1,6 +1,8 @@
 # Build outputs
 target/
 out/
+build/
+.gradle/
 
 # IDE
 .idea/
@@ -15,5 +17,17 @@ out/
 Thumbs.db
 hs_err_pid*.log
 
+# Gradle
+.gradle
+**/build/
+!src/**/build/
+gradle-app.setting
+!gradle-wrapper.jar
+!gradle-wrapper.properties
+.gradletasknamecache
+
+# Kotlin
+*.kotlin_module
+*.kotlin_builtins
 
 .fake

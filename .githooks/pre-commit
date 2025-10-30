@@ -2,7 +2,7 @@
 set -euo pipefail
 
 echo "[pre-commit] Spotless (apply) 実行中…"
-mvn -q spotless:apply
+./gradlew -q spotlessApply
 
 # 整形により差分が出た場合はステージング
 if ! git diff --quiet --exit-code; then
@@ -11,7 +11,7 @@ if ! git diff --quiet --exit-code; then
 fi
 
 echo "[pre-commit] テスト実行中…"
-mvn -q -DskipTests=false test
+./gradlew -q test
 
 echo "[pre-commit] すべて完了"
 

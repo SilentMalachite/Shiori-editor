@@ -11,41 +11,73 @@
     <packaging>jar</packaging>
 
     <name>Markdown対応日本語テキストエディタ</name>
-    <description>JavaFXベースのMarkdown対応日本語テキストエディタ</description>
+    <description>Jetpack Compose DesktopベースのMarkdown対応日本語テキストエディタ</description>
 
     <properties>
-        <maven.compiler.source>21</maven.compiler.source>
-        <maven.compiler.target>21</maven.compiler.target>
+        <kotlin.version>1.9.22</kotlin.version>
+        <compose.version>1.5.12</compose.version>
+        <jvmTarget>21</jvmTarget>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <javafx.version>17.0.2</javafx.version>
-        <main.class>com.texteditor.TextEditor</main.class>
+        <main.class>com.texteditor.MainKt</main.class>
     </properties>
 
+    <repositories>
+        <repository>
+            <id>central</id>
+            <url>https://repo1.maven.org/maven2</url>
+        </repository>
+        <!-- JetBrains Compose Repository -->
+        <repository>
+            <id>compose-releases</id>
+            <url>https://maven.pkg.jetbrains.space/public/p/compose/dev</url>
+        </repository>
+    </repositories>
+    
+    <pluginRepositories>
+        <pluginRepository>
+            <id>central</id>
+            <url>https://repo1.maven.org/maven2</url>
+        </pluginRepository>
+        <!-- JetBrains Compose Repository -->
+        <pluginRepository>
+            <id>compose-releases</id>
+            <url>https://maven.pkg.jetbrains.space/public/p/compose/dev</url>
+        </pluginRepository>
+    </pluginRepositories>
+
     <dependencies>
-        <!-- JavaFX Dependencies -->
+        <!-- Kotlin Standard Library -->
         <dependency>
-            <groupId>org.openjfx</groupId>
-            <artifactId>javafx-controls</artifactId>
-            <version>${javafx.version}</version>
+            <groupId>org.jetbrains.kotlin</groupId>
+            <artifactId>kotlin-stdlib</artifactId>
+            <version>${kotlin.version}</version>
         </dependency>
+
+        <!-- Compose Multiplatform Desktop Components -->
         <dependency>
-            <groupId>org.openjfx</groupId>
-            <artifactId>javafx-fxml</artifactId>
-            <version>${javafx.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.openjfx</groupId>
-            <artifactId>javafx-web</artifactId>
-            <version>${javafx.version}</version>
+            <groupId>org.jetbrains.compose.ui</groupId>
+            <artifactId>ui-desktop</artifactId>
+            <version>${compose.version}</version>
         </dependency>
         
-        <!-- RichTextFX for advanced text editing -->
         <dependency>
-            <groupId>org.fxmisc.richtext</groupId>
-            <artifactId>richtextfx</artifactId>
-            <version>0.11.0</version>
+            <groupId>org.jetbrains.compose.foundation</groupId>
+            <artifactId>foundation-desktop</artifactId>
+            <version>${compose.version}</version>
         </dependency>
         
+        <dependency>
+            <groupId>org.jetbrains.compose.material</groupId>
+            <artifactId>material-desktop</artifactId>
+            <version>${compose.version}</version>
+        </dependency>
+        
+        <dependency>
+            <groupId>org.jetbrains.compose.runtime</groupId>
+            <artifactId>runtime-desktop</artifactId>
+            <version>${compose.version}</version>
+        </dependency>
+
         <!-- FlexMark for Markdown parsing -->
         <dependency>
             <groupId>com.vladsch.flexmark</groupId>
@@ -60,28 +92,68 @@
             <version>5.10.2</version>
             <scope>test</scope>
         </dependency>
+
+        <!-- Kotlin Test -->
+        <dependency>
+            <groupId>org.jetbrains.kotlin</groupId>
+            <artifactId>kotlin-test-junit5</artifactId>
+            <version>${kotlin.version}</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>
+        <sourceDirectory>src/main/kotlin</sourceDirectory>
+        <testSourceDirectory>src/test/kotlin</testSourceDirectory>
+        
         <plugins>
-            <!-- Maven Compiler Plugin -->
+            <!-- Kotlin Maven Plugin -->
             <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.13.0</version>
+                <groupId>org.jetbrains.kotlin</groupId>
+                <artifactId>kotlin-maven-plugin</artifactId>
+                <version>${kotlin.version}</version>
+                <executions>
+                    <execution>
+                        <id>compile</id>
+                        <phase>compile</phase>
+                        <goals>
+                            <goal>compile</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>test-compile</id>
+                        <phase>test-compile</phase>
+                        <goals>
+                            <goal>test-compile</goal>
+                        </goals>
+                    </execution>
+                </executions>
                 <configuration>
-                    <release>21</release>
-                    <encoding>UTF-8</encoding>
+                    <jvmTarget>${jvmTarget}</jvmTarget>
                 </configuration>
             </plugin>
 
-            <!-- JavaFX Maven Plugin -->
+            <!-- Exec Maven Plugin for running the application -->
             <plugin>
-                <groupId>org.openjfx</groupId>
-                <artifactId>javafx-maven-plugin</artifactId>
-                <version>0.0.8</version>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <version>3.1.0</version>
                 <configuration>
                     <mainClass>${main.class}</mainClass>
+                </configuration>
+            </plugin>
+
+            <!-- Maven Jar Plugin -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <version>3.3.0</version>
+                <configuration>
+                    <archive>
+                        <manifest>
+                            <mainClass>${main.class}</mainClass>
+                        </manifest>
+                    </archive>
                 </configuration>
             </plugin>
 
@@ -91,25 +163,22 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>3.2.5</version>
                 <configuration>
-                    <!-- 非モジュール運用のため -->
                     <useModulePath>false</useModulePath>
                 </configuration>
             </plugin>
 
-            <!-- Spotless (Eclipse formatter) -->
+            <!-- Spotless (Kotlin formatter) -->
             <plugin>
                 <groupId>com.diffplug.spotless</groupId>
                 <artifactId>spotless-maven-plugin</artifactId>
                 <version>2.43.0</version>
                 <configuration>
-                    <java>
-                        <eclipse>
-                            <version>4.26.0</version>
-                        </eclipse>
+                    <kotlin>
+                        <ktfmt>
+                            <version>0.48</version>
+                        </ktfmt>
                         <removeUnusedImports/>
-                        <importOrder/>
-                        <formatAnnotations/>
-                    </java>
+                    </kotlin>
                 </configuration>
                 <executions>
                     <execution>
@@ -121,28 +190,6 @@
                     </execution>
                 </executions>
             </plugin>
-
-            <!-- JPackage Plugin for creating native installers -->
-            <plugin>
-                <groupId>org.panteleyev</groupId>
-                <artifactId>jpackage-maven-plugin</artifactId>
-                <version>1.6.0</version>
-                <configuration>
-                    <mainClass>com.texteditor.TextEditor</mainClass>
-                    <name>Shiori Editor</name>
-                    <appVersion>1.0.0</appVersion>
-                    <vendor>Shiori</vendor>
-                    <description>JavaFX-based Markdown Text Editor</description>
-                    <destination>${project.build.directory}/jpackage</destination>
-                    <input>${project.build.directory}</input>
-                    <mainJar>${project.build.finalName}.jar</mainJar>
-                    <classPath>*</classPath>
-                    <modulePath>
-                        <path>${java.home}/jmods</path>
-                    </modulePath>
-                </configuration>
-            </plugin>
-
         </plugins>
     </build>
 </project>
