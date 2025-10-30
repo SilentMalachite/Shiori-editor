@@ -47,9 +47,24 @@ compose.desktop {
             packageName = "Shiori Editor"
             packageVersion = "1.0.0"
 
-            macOS { iconFile.set(project.file("src/main/resources/icon.icns")) }
-            windows { iconFile.set(project.file("src/main/resources/icon.ico")) }
-            linux { iconFile.set(project.file("src/main/resources/icon.png")) }
+            macOS {
+                val iconPath = project.file("src/main/resources/icon.icns")
+                if (iconPath.exists()) {
+                    iconFile.set(iconPath)
+                }
+            }
+            windows {
+                val iconPath = project.file("src/main/resources/icon.ico")
+                if (iconPath.exists()) {
+                    iconFile.set(iconPath)
+                }
+            }
+            linux {
+                val iconPath = project.file("src/main/resources/icon.png")
+                if (iconPath.exists()) {
+                    iconFile.set(iconPath)
+                }
+            }
         }
     }
 }
